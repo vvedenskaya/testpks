@@ -28,9 +28,6 @@ class RouterStats(pydantic.BaseModel):
     subscriptions: list[RouterSubscription]
     cheap: int = pydantic.Field(ge=0)
 
-
-
-
 def run(stats_address):
     if not all([stats_address.exists(), stats_address.is_socket()]):
         raise Exception(f"unable to read stats from {(stats_address)}")
@@ -77,67 +74,52 @@ if __name__ == "__main__":
     stats = run(stats_address)
 
 
-class AppStats(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(strict=True)
-    version: str
-    listen_queue: int
-    listen_queue_errors: int
-    signal_queue: int
-    load: int
-    pid: int
-    uid: int
-    gid: int
-    cwd: str
-    locks: list[dict[str, int]]
-    sockets: list[stats.SocketStats]
-    workers: list[stats.WorkerStats]
-
-    def read_stats(socket_address):
-        sockets = {
-            "9027_stats.sock": "{app1 - stats}"
-        }
-        if socket_address in sockets:
-            return sockets[socket_address]
-        else:
-            return "could not lookup socket"
-
-    if __name__ == "__main__":
-        counter = 0
-        nodes = ["127.0.0.1:9027", "127.0.0.1:9030"]
-
-
-        for node in nodes:
-            port = node.split(":")[-1]
-            socket_address = f"{port}_stats.sock"
-            stats = read_stats(socket_address)
-            print(stats)
-
-            stats2 = run(Path("run/app1_stats.sock"))
-            app_stats = AppStats(**stats2)
-            print(app_stats.workers)
-            worker_amount = app_stats.workers
-            print(len(app_stats.workers))
+# class AppStats(pydantic.BaseModel):
+#     model_config = pydantic.ConfigDict(strict=True)
+#     version: str
+#     listen_queue: int
+#     listen_queue_errors: int
+#     signal_queue: int
+#     load: int
+#     pid: int
+#     uid: int
+#     gid: int
+#     cwd: str
+#     locks: list[dict[str, int]]
+#     sockets: list[stats.SocketStats]
+#     workers: list[stats.WorkerStats]
 
 
 
 
+nodes = ["127.0.0.1:9027", "127.0.0.1:9030"]
+for node in nodes:
+    port = node.split(":")[-1]
+    socket_address = f"{port}_stats.sock"
+    node_stats = Path("9027_stats.sock")
+    print(node_stats)
 
-    router_stats = RouterStats(**stats)
-    print(router_stats)
+stats_address2 = Path("run/9027_stats.sock")
+stats2 = run(stats_address2)
+
+app_stats = AppStats(**stats2)
+print(app_stats.workers)
+worker_amount = app_stats.workers
+print(len(app_stats.workers)) #print amount workers
+
+router_stats = RouterStats(**stats)
+print(router_stats)
 
     # import ipdb;ipdb.set_trace()
-    for sub in router_stats.subscriptions:
-        print(f"{sub.key=}")
+for sub in router_stats.subscriptions:
+    print(f"{sub.key=}")
 
-    table = Table()
-    table.add_column("Virtual Hosts", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Nodes", style="magenta")
-    table.add_column("Total Workers", style="magenta")
+table = Table()
+table.add_column("Virtual Hosts", justify="right", style="cyan", no_wrap=True)
+table.add_column("Nodes", style="magenta")
+table.add_column("Total Workers", style="magenta")
+table.add_row(sub.key, f"{len(sub.nodes)}", f"{len(app_stats.workers)}")
 
-    table.add_row(sub.key, f"{len(sub.nodes)}")
-
-
-
-    console = Console()
-    console.print(table)
+console = Console()
+console.print(table)
 
