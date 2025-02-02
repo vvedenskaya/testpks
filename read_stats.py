@@ -72,45 +72,58 @@ def run(stats_address):
 if __name__ == "__main__":
     stats_address = Path("run/sub1-stats.sock")
     stats = run(stats_address)
+    print(stats)
 
+class SocketStats(pydantic.BaseModel):
+    name:str
+    queue: int
 
-# class AppStats(pydantic.BaseModel):
-#     model_config = pydantic.ConfigDict(strict=True)
-#     version: str
-#     listen_queue: int
-#     listen_queue_errors: int
-#     signal_queue: int
-#     load: int
-#     pid: int
-#     uid: int
-#     gid: int
-#     cwd: str
-#     locks: list[dict[str, int]]
-#     sockets: list[stats.SocketStats]
-#     workers: list[stats.WorkerStats]
+class WorkerStats(pydantic.BaseModel):
+    id:int
+    accepting:int
 
+class AppStats(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(strict=True)
+    version: str
+    listen_queue: int = 0
+    listen_queue_errors: int = 0
+    signal_queue: int
+    load: int
+    pid: int
+    uid: int
+    gid: int
+    cwd: str
+    locks: list[dict[str, int]]
+    sockets: list[SocketStats]
+    workers: list[WorkerStats]
 
+for sub in stats["subscriptions"]:
+    print(sub)
+    for node in sub["nodes"]:
+        print(node)
+        node_name = node["name"]
+        print(f"{node_name}")
+        port = node_name.split(":")[-1]
+        print(f"{port}")
 
-
-nodes = ["127.0.0.1:9027", "127.0.0.1:9030"]
-for node in nodes:
-    port = node.split(":")[-1]
-    socket_address = f"{port}_stats.sock"
-    node_stats = Path("9027_stats.sock")
-    print(node_stats)
-
-stats_address2 = Path("run/9027_stats.sock")
+# stats_address2 = f"{port}_stats.sock"
+stats_address2 = Path(f"run/{port}_stats.sock")
 stats2 = run(stats_address2)
+print(stats2)
+
+for sub2 in stats2["workers"]:
+    print(sub2)
 
 app_stats = AppStats(**stats2)
-print(app_stats.workers)
+print(app_stats)
+
 worker_amount = app_stats.workers
-print(len(app_stats.workers)) #print amount workers
+print(len(app_stats.workers)) # print amount workers
 
 router_stats = RouterStats(**stats)
 print(router_stats)
 
-    # import ipdb;ipdb.set_trace()
+     # import ipdb;ipdb.set_trace()
 for sub in router_stats.subscriptions:
     print(f"{sub.key=}")
 
@@ -119,7 +132,6 @@ table.add_column("Virtual Hosts", justify="right", style="cyan", no_wrap=True)
 table.add_column("Nodes", style="magenta")
 table.add_column("Total Workers", style="magenta")
 table.add_row(sub.key, f"{len(sub.nodes)}", f"{len(app_stats.workers)}")
-
 console = Console()
 console.print(table)
 

@@ -1,7 +1,15 @@
 from pathlib import Path
-
+from typing import List, Dict
 import pydantic
 
+
+class SocketStats(pydantic.BaseModel):
+    name:str
+    queue: int
+
+class WorkerStats(pydantic.BaseModel):
+    id:int
+    accepting:int
 
 class VirtualHost(pydantic.BaseModel):
     address: str
@@ -40,6 +48,7 @@ class Router(pydantic.BaseModel):
     @pydantic.computed_field
     def subscription_server_protocol(self) -> str:
         return "http" if str(self.subscription_server_port).startswith("9") else "https"
+
 
 
 class WsgiAppOptions(pydantic.BaseModel):
