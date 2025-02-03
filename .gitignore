@@ -5,6 +5,7 @@
 __pycache__/
 *.py[cod]
 *.swp
+*.swo
 
 # Logs and databases
 *.log
