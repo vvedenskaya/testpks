@@ -1,4 +1,0 @@
-My name is Julia.
-I live in NYC.
-I study Python.
-In my spare time I go to gym, run and watch movies on projector.

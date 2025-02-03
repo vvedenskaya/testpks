@@ -1,4 +1,4 @@
-#!/Users/user/dev/testpks/testpks/.venv/bin/python3.12
+#!/home/jvved/dev/testpks/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
