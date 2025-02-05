@@ -7,14 +7,43 @@ import socket
 import stats
 from stats import WorkerAppStats
 from stats import AppStats
-
+from collections import Counter
 from rich.console import Console
+import sys
+import glob
 
 from stats import RouterSubscription
 import time
 from rich.live import Live
 from rich.table import Table
 import pydantic
+
+class SocketStats(pydantic.BaseModel):
+    name: str
+    queue: int
+
+class WorkerStats(pydantic.BaseModel):
+    id: int
+    accepting: int
+
+class AppStats(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(strict=True)
+    version: str
+    listen_queue: int = 0
+    listen_queue_errors: int = 0
+    signal_queue: int
+    load: int
+    pid: int
+    uid: int
+    gid: int
+    cwd: str
+    locks: list[dict[str, int]]
+    sockets: list[SocketStats]
+    workers: list[WorkerStats]
+
+# import ipdb;ipdb.set_trace()
+
+
 
 class RouterStats(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(strict=True)
@@ -28,7 +57,7 @@ class RouterStats(pydantic.BaseModel):
     subscriptions: list[RouterSubscription]
     cheap: int = pydantic.Field(ge=0)
 
-def run(stats_address):
+def read_stats(stats_address):
     if not all([stats_address.exists(), stats_address.is_socket()]):
         raise Exception(f"unable to read stats from {(stats_address)}")
 
@@ -70,68 +99,45 @@ def run(stats_address):
             print(js)
 
 if __name__ == "__main__":
-    stats_address = Path("run/sub1-stats.sock")
-    stats = run(stats_address)
-    print(stats)
+    # ini_directory = Path("/home/jvved/dev/testpks/")
+    # ini_file = ini_directory.glob("sub*.ini")
+    # print(ini_file)
+    stats_list = ["run/sub1-stats.sock", "run/sub2-stats.sock"]
+    for stats in stats_list:
+        stats_address = Path(stats_list)
+        stats = read_stats(stats_address)
+        print(stats)
+        router_stats = RouterStats(**stats)
+        all_app_stats = {}
+        total_workers = 0
 
-class SocketStats(pydantic.BaseModel):
-    name:str
-    queue: int
+    for sub in router_stats.subscriptions:
+        print(sub)
+        for node in sub.nodes:
+            print(node.name)
+            port = node.name.split(":")[-1]
+            print(port)
+            stats_address2 = Path(f"run/{port}_stats.sock")
+            stats2 = read_stats(stats_address2)
+            app_stats = AppStats(**stats2)
+            print(f"App Stats for {port}:{app_stats}")
+            print(app_stats.workers)
+            print(len(app_stats.workers))
+            worker_amount = len(app_stats.workers)
+            total_workers = total_workers + worker_amount
+            print(total_workers)
 
-class WorkerStats(pydantic.BaseModel):
-    id:int
-    accepting:int
 
-class AppStats(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(strict=True)
-    version: str
-    listen_queue: int = 0
-    listen_queue_errors: int = 0
-    signal_queue: int
-    load: int
-    pid: int
-    uid: int
-    gid: int
-    cwd: str
-    locks: list[dict[str, int]]
-    sockets: list[SocketStats]
-    workers: list[WorkerStats]
+    print(router_stats)
+    #import ipdb;ipdb.set_trace()
+    for sub in router_stats.subscriptions:
+        print(f"{sub.key=}")
 
-for sub in stats["subscriptions"]:
-    print(sub)
-    for node in sub["nodes"]:
-        print(node)
-        node_name = node["name"]
-        print(f"{node_name}")
-        port = node_name.split(":")[-1]
-        print(f"{port}")
-
-# stats_address2 = f"{port}_stats.sock"
-stats_address2 = Path(f"run/{port}_stats.sock")
-stats2 = run(stats_address2)
-print(stats2)
-
-for sub2 in stats2["workers"]:
-    print(sub2)
-
-app_stats = AppStats(**stats2)
-print(app_stats)
-
-worker_amount = app_stats.workers
-print(len(app_stats.workers)) # print amount workers
-
-router_stats = RouterStats(**stats)
-print(router_stats)
-
-     # import ipdb;ipdb.set_trace()
-for sub in router_stats.subscriptions:
-    print(f"{sub.key=}")
-
-table = Table()
-table.add_column("Virtual Hosts", justify="right", style="cyan", no_wrap=True)
-table.add_column("Nodes", style="magenta")
-table.add_column("Total Workers", style="magenta")
-table.add_row(sub.key, f"{len(sub.nodes)}", f"{len(app_stats.workers)}")
-console = Console()
-console.print(table)
+    table = Table()
+    table.add_column("Virtual Hosts", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Nodes", style="magenta")
+    table.add_column("Total Workers", style="magenta")
+    table.add_row(sub.key, f"{len(sub.nodes)}", f"{total_workers}")
+    console = Console()
+    console.print(table)
 
